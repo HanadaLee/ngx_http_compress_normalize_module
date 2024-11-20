@@ -310,7 +310,6 @@ ngx_http_compress_normalize_parse_encoding_part(ngx_http_request_t *r, ngx_str_t
     u_char     *param_p, *param_last;
     u_char     c;
     ngx_int_t   q_value_is_zero = 1;  /* 默认为 0 */
-    ngx_uint_t  i;
     ngx_uint_t  decimal_points = 0;
 
     /* 查找分号 ';' */
