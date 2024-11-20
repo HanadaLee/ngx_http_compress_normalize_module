@@ -307,9 +307,9 @@ ngx_http_compress_normalize_parse_encoding_part(ngx_http_request_t *r, ngx_str_t
     u_char     *semicolon;
     ngx_str_t   encoding;
     ngx_str_t   params;
-    u_char     *param_p, *param_last;
-    u_char     c;
-    ngx_int_t   q_value_is_zero = 1;  /* 默认为 0 */
+    u_char     *p, *last;
+    u_char      c;
+    ngx_int_t   q_value_is_zero = 1;  /* 默认为 q=0 */
     ngx_uint_t  decimal_points = 0;
 
     /* 查找分号 ';' */
@@ -327,11 +327,11 @@ ngx_http_compress_normalize_parse_encoding_part(ngx_http_request_t *r, ngx_str_t
     }
 
     /* 去除编码两端的空白字符 */
-    while (encoding.len > 0 && (encoding.data[0] == ' ' || encoding.data[0] == '\t')) {
+    while (encoding.len > 0 && isspace(encoding.data[0])) {
         encoding.data++;
         encoding.len--;
     }
-    while (encoding.len > 0 && (encoding.data[encoding.len - 1] == ' ' || encoding.data[encoding.len - 1] == '\t')) {
+    while (encoding.len > 0 && isspace(encoding.data[encoding.len - 1])) {
         encoding.len--;
     }
 
@@ -341,78 +341,82 @@ ngx_http_compress_normalize_parse_encoding_part(ngx_http_request_t *r, ngx_str_t
 
     /* 解析 q 值 */
     if (params.len > 0) {
-        param_p = params.data;
-        param_last = params.data + params.len;
+        p = params.data;
+        last = params.data + params.len;
 
         /* 跳过空白字符 */
-        while (param_p < param_last && (*param_p == ' ' || *param_p == '\t')) {
-            param_p++;
+        while (p < last && isspace(*p)) {
+            p++;
+        }
+
+        /* 检查是否紧跟 'q=' 或 'Q=' */
+        if (!(p + 1 < last && (p[0] == 'q' || p[0] == 'Q') && p[1] == '=')) {
+            ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                          "normalize_accept_encoding: missing 'q=' in Accept-Encoding parameters");
+            return NGX_OK;  /* 跳过此编码 */
+        }
+
+        p += 2;  /* 跳过 'q=' */
+
+        /* 跳过空白字符 */
+        while (p < last && isspace(*p)) {
+            p++;
         }
 
         /* 期望下一个字符是数字 */
-        if (param_p < param_last && (*param_p >= '0' && *param_p <= '9')) {
-            /* 检查第一个字符是否为小数点（非法） */
-            if (*param_p == '.') {
-                ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                              "normalize_accept_encoding: decimal point at the beginning of q-value");
-                return NGX_OK;  /* 跳过此编码 */
-            }
-
-            /* 遍历 q 值，确保格式正确 */
-            for (; param_p < param_last; param_p++) {
-                c = *param_p;
-
-                if (c == ' ' || c == '\t') {
-                    continue;  /* 跳过空白字符 */
-                }
-
-                if (c == '.') {
-                    decimal_points++;
-                    if (decimal_points > 1) {
-                        /* 多于一个小数点，非法格式 */
-                        ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                                      "normalize_accept_encoding: multiple decimal points in q-value");
-                        return NGX_OK;  /* 跳过此编码 */
-                    }
-                } else if (c >= '0' && c <= '9') {
-                    if (c != '0') {
-                        q_value_is_zero = 0;  /* 发现非零数字 */
-                    }
-                } else {
-                    /* 非法字符，非法格式 */
-                    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
-                                  "normalize_accept_encoding: invalid character '%c' in q-value", c);
-                    return NGX_OK;  /* 跳过此编码 */
-                }
-            }
-
-            /* 检查 q 值是否为 0 */
-            if (q_value_is_zero) {
-                /* q 值为 0，跳过此编码 */
-                return NGX_OK;
-            }
-        } else {
-            /* 如果在空白后不是数字，视为非法格式，跳过此编码 */
+        if (p >= last || !(p[0] >= '0' && p[0] <= '9')) {
             ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                           "normalize_accept_encoding: invalid q-value format in Accept-Encoding");
             return NGX_OK;  /* 跳过此编码 */
         }
+
+        /* 遍历 q 值，确保格式正确 */
+        while (p < last) {
+            c = *p;
+
+            if (c == '.') {
+                decimal_points++;
+                if (decimal_points > 1) {
+                    /* 多于一个小数点，非法格式 */
+                    ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                                  "normalize_accept_encoding: multiple decimal points in q-value");
+                    return NGX_OK;  /* 跳过此编码 */
+                }
+                /* 小数点不在开头，已经在之前检查 */
+            } else if (c >= '0' && c <= '9') {
+                if (c != '0') {
+                    q_value_is_zero = 0;  /* 发现非零数字 */
+                }
+            } else {
+                /* 非法字符，非法格式 */
+                ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                              "normalize_accept_encoding: invalid character '%c' in q-value", c);
+                return NGX_OK;  /* 跳过此编码 */
+            }
+            p++;
+        }
+
+        /* 检查 q 值是否为 0 */
+        if (q_value_is_zero) {
+            /* q 值为 0，跳过此编码 */
+            return NGX_OK;
+        }
     }
 
     /* 添加到 accepted_encodings */
-    ngx_str_t *accepted_enc;
+    {
+        ngx_str_t *accepted_enc = ngx_array_push(accepted_encodings);
+        if (accepted_enc == NULL) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
 
-    accepted_enc = ngx_array_push(accepted_encodings);
-    if (accepted_enc == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        accepted_enc->len = encoding.len;
+        accepted_enc->data = ngx_pnalloc(r->pool, encoding.len);
+        if (accepted_enc->data == NULL) {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
+        ngx_memcpy(accepted_enc->data, encoding.data, encoding.len);
     }
-
-    accepted_enc->len = encoding.len;
-    accepted_enc->data = ngx_pnalloc(r->pool, encoding.len);
-    if (accepted_enc->data == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-    ngx_memcpy(accepted_enc->data, encoding.data, encoding.len);
 
     return NGX_OK;
 }
