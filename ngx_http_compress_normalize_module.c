@@ -662,7 +662,8 @@ ngx_http_compress_normalize_handler(ngx_http_request_t *r)
         }
     }
 
-    normalized_accept_encoding = ngx_null_string;
+    normalized_accept_encoding.len = 0;
+    normalized_accept_encoding.data = NULL;
     if (ngx_http_compress_normalize_check_combinations(r,
         accepted_encodings, cncf->combinations,
         &normalized_accept_encoding) == NGX_OK)
