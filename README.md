@@ -1,93 +1,79 @@
 # ngx_http_compress_normalize_module
 
+# Describe
 
+`ngx_http_compress_normalize_module`` is an Nginx module designed to parse, normalize, and manage the Accept-Encoding headers from client requests. It ensures consistent handling of compression algorithms by standardizing the Accept-Encoding values, facilitating better compression management and improved vary cache performance.
 
-## Getting started
+# Table of Content
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+* [Name](#name)
+* [Status](#status)
+* [Synopsis](#synopsis)
+* [Installation](#installation)
+* [Directives](#directives)
+  * [compress_normalize_accept_encoding](#compress_normalize_accept_encoding)
+* [Variables](#variables)
+  * [\$compress_original_accept_encoding](#\$compress_original_accept_encoding)
+* [Author](#author)
+* [License](#license)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+# Status
 
-## Add your files
+This Nginx module is currently considered experimental. Issues and PRs are welcome if you encounter any problems.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+# Synopsis
 
+```nginx
+http {
+    compress_normalize_accept_encoding gzip,br,zstd gzip,br zstd br gzip;
+
+    server {
+        listen 80;
+        server_name example.com;
+
+        location / {
+            # Your configurations
+        }
+    }
+}
 ```
-cd existing_repo
-git remote add origin https://git.hanada.info/hanada/ngx_http_compress_normalize_module.git
-git branch -M main
-git push -uf origin main
+
+# Installation
+
+To use theses modules, configure your nginx branch with `--add-module=/path/to/ngx_http_compress_normalize_module`.
+
+# Directives
+
+## compress_normalize_accept_encoding
+
+**Syntax:** *compress_normalize_accept_encoding combinations1 \[combinations2 ..\] | off;*
+
+**Default:** *compress_normalize_accept_encoding off;*
+
+**Context:** *http, server, location*
+
+Enables the normalization of the Accept-Encoding header by specifying preferred combinations of compression algorithms. This directive accepts a list of compression methods, allowing to define the order and priority of encoding types that the server should prefer when responding to client requests.
+
+For example, with the following configuration
+
+```nginx
+compress_normalize_accept_encoding gzip,br,zstd gzip,br zstd br gzip;
 ```
 
-## Integrate with your tools
+If the request header Accept-Encoding contains gzip, br and zstd at the same time, the value of the standardized Accept-Encoding header is `gzip,br,zstd`. If the above conditions are not met, but the request header contains gzip and br, the value of the standardized Accept-Encoding header is `gzip,br`. And so on, until all the combinations given by the `compress_normalize_accept_encoding` directive are checked. If no combination is hit at this time, the Accept-Encoding header is directly deleted.
 
-- [ ] [Set up project integrations](https://git.hanada.info/hanada/ngx_http_compress_normalize_module/-/settings/integrations)
+A value of `off` will disable this feature.
 
-## Collaborate with your team
+# Variables
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+## \$compress_original_accept_encoding
 
-## Test and Deploy
+keeps the original value of request Accept-Encoding header.
 
-Use the built-in continuous integration in GitLab.
+# Author
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Hanada im@hanada.info
 
-***
+# License
 
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+This Nginx module is licensed under [BSD 2-Clause License](LICENSE).
